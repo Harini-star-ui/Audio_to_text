@@ -1,0 +1,89 @@
+import whisper
+import os
+import re
+from collections import Counter
+from pydub import AudioSegment
+from pydub.silence import split_on_silence
+
+# Function to convert mp3/m4a to wav
+def convert_to_wav(input_file):
+    file_ext = os.path.splitext(input_file)[-1].lower()
+    
+    if file_ext not in [".mp3", ".m4a"]:
+        raise ValueError("Unsupported file format. Please provide an .mp3 or .m4a file.")
+    
+    audio = AudioSegment.from_file(input_file, format=file_ext[1:])
+    output_file = input_file.rsplit(".", 1)[0] + ".wav"
+    audio.export(output_file, format="wav")
+    
+    return output_file
+
+# Function to split large audio files into chunks
+def split_audio(file_path, min_silence_len=1000, silence_thresh=-40, chunk_length_ms=60000):
+    audio = AudioSegment.from_wav(file_path)
+    
+    if len(audio) <= chunk_length_ms:
+        return [file_path]  # If the file is small, no need to split
+    
+    chunks = split_on_silence(
+        audio,
+        min_silence_len=min_silence_len,
+        silence_thresh=silence_thresh,
+        keep_silence=500  # Keep some silence for context
+    )
+    
+    chunk_files = []
+    base_name = os.path.splitext(file_path)[0]
+    
+    for i, chunk in enumerate(chunks):
+        chunk_file = f"{base_name}_chunk{i}.wav"
+        chunk.export(chunk_file, format="wav")
+        chunk_files.append(chunk_file)
+    
+    return chunk_files
+
+# Function to transcribe audio files
+def transcribe_audio(file_path, model_size="small"):
+    model = whisper.load_model(model_size)
+    
+    # Convert non-wav files to wav
+    if not file_path.lower().endswith(".wav"):
+        file_path = convert_to_wav(file_path)
+    
+    chunk_files = split_audio(file_path)
+    
+    transcription = []
+    for chunk in chunk_files:
+        result = model.transcribe(chunk)
+        transcription.append(result["text"])
+    
+    return " ".join(transcription)
+
+# Function to summarize transcribed text without transformers
+def summarize_text(text, sentence_count=3):
+    # Split text into sentences
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    
+    # Count word frequencies
+    words = text.lower().split()
+    word_freq = Counter(words)
+    
+    # Score sentences based on word frequency
+    sentence_scores = {}
+    for sentence in sentences:
+        score = sum(word_freq[word] for word in sentence.lower().split() if word in word_freq)
+        sentence_scores[sentence] = score
+    
+    # Select the top-ranked sentences
+    summary_sentences = sorted(sentence_scores, key=sentence_scores.get, reverse=True)[:sentence_count]
+    
+    return " ".join(summary_sentences)
+
+# Example usage
+if __name__ == "__main__":
+    input_audio = "example.mp3"  # Change this to your audio file
+    text_output = transcribe_audio(input_audio, model_size="small")
+    print("Transcription:\n", text_output)
+    
+    summary_output = summarize_text(text_output, sentence_count=3)
+    print("\nSummary:\n", summary_output)
