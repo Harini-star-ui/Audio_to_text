@@ -3,62 +3,55 @@ import queue
 import json
 from vosk import Model, KaldiRecognizer
 
-# Load Vosk Model
 def load_model():
     return Model("model")  # Ensure the model is downloaded and placed correctly
 
-# Audio Queue for buffering input
-q1 = queue.Queue()
-q2 = queue.Queue()
+def process_audio(q, recognizer, label):
+    """Processes the audio from the queue and prints recognized text."""
+    while not q.empty():
+        data = q.get()
+        if recognizer.AcceptWaveform(data):
+            result = json.loads(recognizer.Result())
+            print(f"{label}: {result['text']}")
 
-# Callback function to store audio data
-def callback1(in_data, frame_count, time_info, status):
-    q1.put(in_data)
-    return (in_data, pyaudio.paContinue)
+def audio_callback(q):
+    """Returns a callback function for PyAudio to store audio data."""
+    def callback(in_data, frame_count, time_info, status):
+        q.put(in_data)
+        return in_data, pyaudio.paContinue
+    return callback
 
-def callback2(in_data, frame_count, time_info, status):
-    q2.put(in_data)
-    return (in_data, pyaudio.paContinue)
-
-def main():
-    # Initialize PyAudio
+def run_speech_recognition():
+    """Main function to run dual microphone speech recognition."""
     p = pyaudio.PyAudio()
     model = load_model()
-
-    # Open two microphone streams (Modify device_index accordingly)
+    
+    q1, q2 = queue.Queue(), queue.Queue()
+    
     stream1 = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True,
-                     frames_per_buffer=8000, input_device_index=0, stream_callback=callback1)
+                     frames_per_buffer=8000, input_device_index=0, stream_callback=audio_callback(q1))
     stream2 = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True,
-                     frames_per_buffer=8000, input_device_index=1, stream_callback=callback2)
-
-    # Initialize Vosk Recognizers
-    rec1 = KaldiRecognizer(model, 16000)
-    rec2 = KaldiRecognizer(model, 16000)
-
+                     frames_per_buffer=8000, input_device_index=1, stream_callback=audio_callback(q2))
+    
+    rec1, rec2 = KaldiRecognizer(model, 16000), KaldiRecognizer(model, 16000)
+    
     print("Listening... Press Ctrl+C to stop.")
-
+    
     try:
         while True:
-            if not q1.empty():
-                data1 = q1.get()
-                if rec1.AcceptWaveform(data1):
-                    result = json.loads(rec1.Result())
-                    print("Caller: ", result["text"])
-            
-            if not q2.empty():
-                data2 = q2.get()
-                if rec2.AcceptWaveform(data2):
-                    result = json.loads(rec2.Result())
-                    print("Receiver: ", result["text"])
+            process_audio(q1, rec1, "Caller")
+            process_audio(q2, rec2, "Receiver")
     except KeyboardInterrupt:
         print("Stopping...")
     
-    # Cleanup
     stream1.stop_stream()
     stream1.close()
     stream2.stop_stream()
     stream2.close()
     p.terminate()
+
+def main():
+    run_speech_recognition()
 
 if __name__ == "__main__":
     main()
