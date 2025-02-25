@@ -1,0 +1,34 @@
+from pydub import AudioSegment
+import whisper
+
+
+# Load the Whisper model (choose 'tiny', 'base', 'small', 'medium', or 'large')
+model = whisper.load_model("large")
+
+# Transcribe the audio file
+result = model.transcribe("path_to_your_large_audio_file.mp3")
+
+# Print the transcribed text
+print(result["text"])
+
+def split_audio(file_path, chunk_length=60000):  # 60 seconds per chunk
+    audio = AudioSegment.from_file(file_path)
+    chunks = [audio[i:i+chunk_length] for i in range(0, len(audio), chunk_length)]
+    return chunks
+
+def transcribe_large_audio(file_path):
+    model = whisper.load_model("large")
+    audio_chunks = split_audio(file_path)
+    
+    transcript = ""
+    for i, chunk in enumerate(audio_chunks):
+        chunk_path = f"chunk_{i}.wav"
+        chunk.export(chunk_path, format="wav")
+        result = model.transcribe(chunk_path)
+        transcript += result["text"] + " "
+    
+    return transcript
+
+# Transcribe the large file
+transcribed_text = transcribe_large_audio("path_to_large_audio.mp3")
+print(transcribed_text)
