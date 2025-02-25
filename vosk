@@ -1,0 +1,28 @@
+import wave
+import json
+from vosk import Model, KaldiRecognizer
+
+def load_model():
+    return Model("model")  # Ensure the model is downloaded and placed correctly
+
+def transcribe_audio(file_path):
+    """Converts an audio file to text using Vosk."""
+    model = load_model()
+    recognizer = KaldiRecognizer(model, 16000)
+    
+    with wave.open(file_path, "rb") as wf:
+        while True:
+            data = wf.readframes(4000)
+            if not data:
+                break
+            recognizer.AcceptWaveform(data)
+    
+    result = json.loads(recognizer.FinalResult())
+    print("Transcription:", result["text"])
+
+def main():
+    file_path = "input.wav"  # Replace with your audio file
+    transcribe_audio(file_path)
+
+if __name__ == "__main__":
+    main()
