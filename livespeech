@@ -1,0 +1,64 @@
+import pyaudio
+import queue
+import json
+from vosk import Model, KaldiRecognizer
+
+# Load Vosk Model
+def load_model():
+    return Model("model")  # Ensure the model is downloaded and placed correctly
+
+# Audio Queue for buffering input
+q1 = queue.Queue()
+q2 = queue.Queue()
+
+# Callback function to store audio data
+def callback1(in_data, frame_count, time_info, status):
+    q1.put(in_data)
+    return (in_data, pyaudio.paContinue)
+
+def callback2(in_data, frame_count, time_info, status):
+    q2.put(in_data)
+    return (in_data, pyaudio.paContinue)
+
+def main():
+    # Initialize PyAudio
+    p = pyaudio.PyAudio()
+    model = load_model()
+
+    # Open two microphone streams (Modify device_index accordingly)
+    stream1 = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True,
+                     frames_per_buffer=8000, input_device_index=0, stream_callback=callback1)
+    stream2 = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True,
+                     frames_per_buffer=8000, input_device_index=1, stream_callback=callback2)
+
+    # Initialize Vosk Recognizers
+    rec1 = KaldiRecognizer(model, 16000)
+    rec2 = KaldiRecognizer(model, 16000)
+
+    print("Listening... Press Ctrl+C to stop.")
+
+    try:
+        while True:
+            if not q1.empty():
+                data1 = q1.get()
+                if rec1.AcceptWaveform(data1):
+                    result = json.loads(rec1.Result())
+                    print("Caller: ", result["text"])
+            
+            if not q2.empty():
+                data2 = q2.get()
+                if rec2.AcceptWaveform(data2):
+                    result = json.loads(rec2.Result())
+                    print("Receiver: ", result["text"])
+    except KeyboardInterrupt:
+        print("Stopping...")
+    
+    # Cleanup
+    stream1.stop_stream()
+    stream1.close()
+    stream2.stop_stream()
+    stream2.close()
+    p.terminate()
+
+if __name__ == "__main__":
+    main()
