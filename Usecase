@@ -1,0 +1,12 @@
+Problem Statement:
+
+In modern software development, developers frequently face challenges while managing Bitbucket workflows, debugging build failures, resolving merge conflicts, and ensuring secure code quality. Currently, developers must manually track repository access requests, navigate multiple interfaces to retrieve logs for failed builds, and investigate potential causes of failures by correlating recent commits. Additionally, identifying unreviewed pull requests (PRs) and ensuring prompt action from approvers remains a tedious task, often leading to delays in code deployment. The absence of an automated, intelligent system to streamline these activities results in inefficiencies, wasted effort, and prolonged resolution times.
+
+Target State:
+
+To address these challenges, we propose an AI-powered chatbot integrated with Bitbucket workflows and ARM API, enhancing the developer experience. This chatbot will assist developers by fetching appropriate Bitbucket workflow links, automating repository access requests, and proactively analyzing failed builds by linking them to recent commits. Additionally, it will fetch logs, suggest potential root causes, and provide actionable fixes while excluding release branches. The chatbot will also detect merge conflicts and suggest resolutions, ensuring seamless collaboration. Furthermore, it will utilize static analysis tools like SonarQube to assess PRs for vulnerabilities, improving code security and compliance.
+
+Enhanced User Experience:
+
+This AI-driven chatbot will significantly streamline development processes, reducing the manual effort required to manage repositories and troubleshoot build issues. Developers will be able to create pull requests, push code, and create branches seamlessly, while also receiving real-time notifications about build statuses and unreviewed PRs. By automating notifications for both approvers and receivers of pending PRs, the chatbot will accelerate the review cycle, fostering faster deployments. Ultimately, this chatbot will enhance productivity, minimize downtime, and promote better collaboration within development teams, leading to a more efficient and secure software development lifecycle.
+
