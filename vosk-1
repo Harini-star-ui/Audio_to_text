@@ -1,14 +1,21 @@
 from vosk import Model, KaldiRecognizer
 import wave
 import json
+from pydub import AudioSegment
 
-# Load Vosk Model (Update with the correct path)
 MODEL_PATH = "vosk-model-small-en-us-0.15"
 
+def convert_to_wav(input_file, output_file="converted.wav"):
+    """ Converts any audio file to a Vosk-compatible WAV format. """
+    audio = AudioSegment.from_file(input_file)
+    audio = audio.set_channels(1).set_frame_rate(16000).set_sample_width(2)  # Mono, 16-bit PCM
+    audio.export(output_file, format="wav")
+    return output_file
+
 def transcribe_audio(file_path):
+    """ Transcribes a WAV file using Vosk. """
     model = Model(MODEL_PATH)
     
-    # Open audio file
     wf = wave.open(file_path, "rb")
     if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getcomptype() != "NONE":
         raise ValueError("Audio file must be WAV format with 16-bit PCM and mono channel.")
@@ -31,6 +38,7 @@ def transcribe_audio(file_path):
     return result_text.strip()
 
 # Example Usage
-audio_file = "your_audio.wav"  # Ensure it's a 16-bit PCM WAV file
-text = transcribe_audio(audio_file)
+input_audio = "your_audio.mp3"  # Can be MP3, WAV, etc.
+wav_file = convert_to_wav(input_audio)  # Ensure it's a valid WAV file
+text = transcribe_audio(wav_file)
 print("Transcribed Text:", text)
