@@ -1,0 +1,8 @@
+from vosk import Model, KaldiRecognizer
+import wave, json
+
+def transcribe(audio_path, model_path="model"):
+    wf, model = wave.open(audio_path, "rb"), Model(model_path)
+    rec = KaldiRecognizer(model, wf.getframerate())
+    while data := wf.readframes(4000): rec.AcceptWaveform(data)
+    return json.loads(rec.Result())["text"]
