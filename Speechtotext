@@ -1,0 +1,6 @@
+import vosk, sys, json, pyaudio  
+model = vosk.Model("model")  
+rec = vosk.KaldiRecognizer(model, 16000)  
+p = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=16000, input=True, frames_per_buffer=8000)  
+while True:  
+    if rec.AcceptWaveform(p.read(4000)): print(json.loads(rec.Result())["text"])  
