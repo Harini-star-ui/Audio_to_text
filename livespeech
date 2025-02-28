@@ -3,6 +3,8 @@ import queue
 import sys
 import vosk
 import pyaudio
+import wave
+import datetime
 
 def transcribe_live():
     model_path = "vosk_model"  # Change this path if your model is elsewhere
@@ -17,6 +19,7 @@ def transcribe_live():
 
     # Set up PyAudio
     audio_queue = queue.Queue()
+
     def callback(in_data, frame_count, time_info, status):
         audio_queue.put(in_data)
         return (in_data, pyaudio.paContinue)
@@ -27,12 +30,22 @@ def transcribe_live():
                         frames_per_buffer=buffer_size,
                         stream_callback=callback)
 
+    # Set up WAV file for saving audio
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    wav_filename = f"transcribed_audio_{timestamp}.wav"
+    wav_file = wave.open(wav_filename, "wb")
+    wav_file.setnchannels(1)
+    wav_file.setsampwidth(audio.get_sample_size(pyaudio.paInt16))
+    wav_file.setframerate(sample_rate)
+
     stream.start_stream()
-    print("Listening... Speak into the microphone.")
+    print(f"Listening... Speak into the microphone. Audio will be saved as {wav_filename}")
 
     try:
         while True:
             data = audio_queue.get()
+            wav_file.writeframes(data)  # Save audio data to WAV file
+
             if recognizer.AcceptWaveform(data):
                 result = json.loads(recognizer.Result())
                 text = result.get("text", "")
@@ -41,9 +54,12 @@ def transcribe_live():
     except KeyboardInterrupt:
         print("\nStopping transcription.")
     finally:
+        # Stop and close everything properly
         stream.stop_stream()
         stream.close()
         audio.terminate()
+        wav_file.close()
+        print(f"Audio saved as {wav_filename}")
 
 if __name__ == "__main__":
     transcribe_live()
