@@ -1,57 +1,49 @@
-import pyaudio
-import queue
 import json
-from vosk import Model, KaldiRecognizer
+import queue
+import sys
+import vosk
+import pyaudio
 
-def load_model():
-    return Model("model")  # Ensure the model is downloaded and placed correctly
+def transcribe_live():
+    model_path = "vosk_model"  # Change this path if your model is elsewhere
+    model = vosk.Model(model_path)
 
-def process_audio(q, recognizer, label):
-    """Processes the audio from the queue and prints recognized text."""
-    while not q.empty():
-        data = q.get()
-        if recognizer.AcceptWaveform(data):
-            result = json.loads(recognizer.Result())
-            print(f"{label}: {result['text']}")
+    # Audio settings
+    sample_rate = 16000
+    buffer_size = 4000  # Buffer size for audio input
 
-def audio_callback(q):
-    """Returns a callback function for PyAudio to store audio data."""
+    # Initialize recognizer
+    recognizer = vosk.KaldiRecognizer(model, sample_rate)
+
+    # Set up PyAudio
+    audio_queue = queue.Queue()
     def callback(in_data, frame_count, time_info, status):
-        q.put(in_data)
-        return in_data, pyaudio.paContinue
-    return callback
+        audio_queue.put(in_data)
+        return (in_data, pyaudio.paContinue)
 
-def run_speech_recognition():
-    """Main function to run dual microphone speech recognition."""
-    p = pyaudio.PyAudio()
-    model = load_model()
-    
-    q1, q2 = queue.Queue(), queue.Queue()
-    
-    stream1 = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True,
-                     frames_per_buffer=8000, input_device_index=0, stream_callback=audio_callback(q1))
-    stream2 = p.open(format=pyaudio.paInt16, channels=1, rate=16000, input=True,
-                     frames_per_buffer=8000, input_device_index=1, stream_callback=audio_callback(q2))
-    
-    rec1, rec2 = KaldiRecognizer(model, 16000), KaldiRecognizer(model, 16000)
-    
-    print("Listening... Press Ctrl+C to stop.")
-    
+    audio = pyaudio.PyAudio()
+    stream = audio.open(format=pyaudio.paInt16, channels=1,
+                        rate=sample_rate, input=True,
+                        frames_per_buffer=buffer_size,
+                        stream_callback=callback)
+
+    stream.start_stream()
+    print("Listening... Speak into the microphone.")
+
     try:
         while True:
-            process_audio(q1, rec1, "Caller")
-            process_audio(q2, rec2, "Receiver")
+            data = audio_queue.get()
+            if recognizer.AcceptWaveform(data):
+                result = json.loads(recognizer.Result())
+                text = result.get("text", "")
+                if text:
+                    print("Recognized:", text)
     except KeyboardInterrupt:
-        print("Stopping...")
-    
-    stream1.stop_stream()
-    stream1.close()
-    stream2.stop_stream()
-    stream2.close()
-    p.terminate()
-
-def main():
-    run_speech_recognition()
+        print("\nStopping transcription.")
+    finally:
+        stream.stop_stream()
+        stream.close()
+        audio.terminate()
 
 if __name__ == "__main__":
-    main()
+    transcribe_live()
