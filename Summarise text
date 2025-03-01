@@ -1,0 +1,15 @@
+import re
+from collections import Counter
+
+# Function to summarize text
+def summarize_text(text, num_sentences=3):
+    sentences = re.split(r' *[\.\?!][\'"\)\]]* *', text)  # Split into sentences
+    word_counts = Counter(text.split())  # Count word frequency
+    
+    # Rank sentences by the sum of word frequencies
+    ranked_sentences = sorted(sentences, key=lambda s: sum(word_counts[word] for word in s.split()), reverse=True)
+    
+    return ' '.join(ranked_sentences[:num_sentences])  # Return top-ranked sentences
+
+summary = summarize_text(text, num_sentences=3)
+print("Summary:", summary)
